@@ -1,6 +1,6 @@
-# API Fiscal
+# SafeTodo
 
-Uma RestAPI desenvolvida com Django e Django REST Framework para gerenciar dados fiscais.
+Uma RestAPI desenvolvida com Django e Django REST Framework para gerenciar uma todo list segura.
 
 ## Tecnologias
 
@@ -14,7 +14,7 @@ Uma RestAPI desenvolvida com Django e Django REST Framework para gerenciar dados
 ### 1. Clonar o repositório
 ```bash
 git clone <seu-repositorio>
-cd api-fiscal
+cd safetodo
 ```
 
 ### 2. Criar ambiente virtual
@@ -63,8 +63,8 @@ O servidor será iniciado em `http://localhost:8000`
 ## Estrutura do Projeto
 
 ```
-api-fiscal/
-├── api_fiscal/              # Configurações principais do projeto
+safetodo/
+├── safetodo/              # Configurações principais do projeto
 │   ├── __init__.py
 │   ├── settings.py          # Configurações do Django
 │   ├── urls.py              # URLs principais

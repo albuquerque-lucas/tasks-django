@@ -1,5 +1,5 @@
 """
-Django settings for api_fiscal project.
+Django settings for safetodo project.
 """
 
 from pathlib import Path
@@ -46,7 +46,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'api_fiscal.urls'
+ROOT_URLCONF = 'safetodo.urls'
 
 TEMPLATES = [
     {
@@ -64,7 +64,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'api_fiscal.wsgi.application'
+WSGI_APPLICATION = 'safetodo.wsgi.application'
 
 
 # Database
@@ -72,7 +72,7 @@ WSGI_APPLICATION = 'api_fiscal.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': config('DB_NAME', default='api_fiscal'),
+        'NAME': config('DB_NAME', default='safetodo'),
         'USER': config('DB_USER', default='postgres'),
         'PASSWORD': config('DB_PASSWORD', default=''),
         'HOST': config('DB_HOST', default='localhost'),
@@ -140,7 +140,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
-    'EXCEPTION_HANDLER': 'api_fiscal.exception_handlers.custom_exception_handler',
+    'EXCEPTION_HANDLER': 'safetodo.exception_handlers.custom_exception_handler',
 }
 
 

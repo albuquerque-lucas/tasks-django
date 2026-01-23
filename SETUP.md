@@ -1,10 +1,10 @@
-# Guia de Instalação e Setup da API Fiscal
+# Guia de Instalação e Setup da SafeTodo
 
 ## ✅ Projeto criado com sucesso!
 
 A estrutura da aplicação Django RestAPI foi criada em:
 ```
-c:\Users\Lucas\Documents\Projetos\api-fiscal
+c:\Users\Lucas\Documents\Projetos\safetodo
 ```
 
 ## 📋 Próximos Passos
@@ -15,7 +15,7 @@ c:\Users\Lucas\Documents\Projetos\api-fiscal
 
 ### 2. Criar Ambiente Virtual
 ```powershell
-cd c:\Users\Lucas\Documents\Projetos\api-fiscal
+cd c:\Users\Lucas\Documents\Projetos\safetodo
 python -m venv venv
 ```
 
@@ -52,8 +52,8 @@ Acesse em: http://localhost:8000
 ## 📁 Estrutura do Projeto
 
 ```
-api-fiscal/
-├── api_fiscal/              # Configurações do projeto
+safetodo/
+├── safetodo/              # Configurações do projeto
 │   ├── settings.py          # Configurações Django
 │   ├── urls.py              # URLs principais
 │   ├── wsgi.py
@@ -90,7 +90,7 @@ GET http://localhost:8000/api/health/
 Esperado:
 ```json
 {
-  "status": "API Fiscal funcionando!"
+  "status": "SafeTodo funcionando!"
 }
 ```
 

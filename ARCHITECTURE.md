@@ -5,8 +5,8 @@
 O projeto foi refatorado para seguir melhor as práticas de Django com múltiplos apps:
 
 ```
-api-fiscal/
-├── api_fiscal/           # Configuração do projeto Django
+safetodo/
+├── safetodo/           # Configuração do projeto Django
 ├── users/                # App de Usuários (compartilhado)
 ├── tasks/                # App de Tarefas (TODO list)
 ├── manage.py
@@ -108,7 +108,7 @@ Cada novo módulo será um app separado dentro do projeto Django.
 As credenciais do banco de dados PostgreSQL devem ser configuradas no arquivo `.env`:
 ```env
 DB_ENGINE=django.db.backends.postgresql
-DB_NAME=api_fiscal_db
+DB_NAME=safetodo_db
 DB_USER=postgres
 DB_PASSWORD=your_db_password_here
 DB_HOST=db

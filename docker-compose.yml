@@ -3,7 +3,7 @@ version: '3.9'
 services:
   db:
     image: postgres:16-alpine
-    container_name: api_fiscal_db
+    container_name: safetodo_db
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -22,7 +22,7 @@ services:
 
   web:
     build: .
-    container_name: api_fiscal_web
+    container_name: safetodo_web
     volumes:
       - .:/app
     ports:

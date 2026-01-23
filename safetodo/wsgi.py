@@ -1,11 +1,11 @@
 """
-WSGI config for api_fiscal project.
+WSGI config for safetodo project.
 """
 
 import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'api_fiscal.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'safetodo.settings')
 
 application = get_wsgi_application()

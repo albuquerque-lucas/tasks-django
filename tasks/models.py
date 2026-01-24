@@ -11,6 +11,35 @@ class BaseModel(models.Model):
         abstract = True
 
 
+class PriorityLevel(BaseModel):
+    """Nivel de prioridade para tarefas"""
+    level = models.IntegerField(
+        unique=True,
+        verbose_name='Nivel'
+    )
+    name = models.CharField(
+        max_length=100,
+        verbose_name='Nome'
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Descricao'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    class Meta:
+        verbose_name = 'Nivel de prioridade'
+        verbose_name_plural = 'Niveis de prioridade'
+        ordering = ('level',)
+
+    def __str__(self):
+        return f"{self.level} - {self.name}"
+
+
 class Task(BaseModel):
     """Modelo de tarefa (TODO list)"""
     STATUS_CHOICES = [
@@ -46,15 +75,19 @@ class Task(BaseModel):
         null=True,
         verbose_name='Data de Vencimento'
     )
-    priority = models.IntegerField(
-        default=0,
-        verbose_name='Prioridade'
+    priority_level = models.ForeignKey(
+        PriorityLevel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tasks',
+        verbose_name='Nivel de Prioridade'
     )
     
     class Meta:
         verbose_name = 'Tarefa'
         verbose_name_plural = 'Tarefas'
-        ordering = ('-priority', 'due_date')
+        ordering = ('-priority_level__level', 'due_date')
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"

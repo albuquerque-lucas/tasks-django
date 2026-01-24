@@ -24,6 +24,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('api/users/', include('users.urls')),
     path('api/tasks/', include('tasks.urls')),
+    path('api/priority-levels/', include('tasks.priority_urls')),
 ]
 
 if settings.DEBUG:

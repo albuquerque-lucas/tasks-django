@@ -83,6 +83,15 @@ class Task(BaseModel):
         related_name='tasks',
         verbose_name='Nivel de Prioridade'
     )
+
+    team = models.ForeignKey(
+        'teams.Team',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='tasks',
+        verbose_name='Equipe'
+    )
     
     class Meta:
         verbose_name = 'Tarefa'

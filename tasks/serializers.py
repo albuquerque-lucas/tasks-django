@@ -23,6 +23,10 @@ class TaskSerializer(serializers.ModelSerializer):
         source='priority_level.name',
         read_only=True
     )
+    team_display = serializers.CharField(
+        source='team.name',
+        read_only=True
+    )
 
     class Meta:
         model = Task
@@ -36,6 +40,8 @@ class TaskSerializer(serializers.ModelSerializer):
             'due_date',
             'priority_level',
             'priority_level_display',
+            'team',
+            'team_display',
             'created_at',
             'updated_at',
         ]
@@ -43,6 +49,7 @@ class TaskSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'user': {'required': False},
             'priority_level': {'required': False, 'allow_null': True},
+            'team': {'required': False, 'allow_null': True},
         }
 
     def __init__(self, *args, **kwargs):

@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'tasks',
+    'teams',
 ]
 
 MIDDLEWARE = [
@@ -134,7 +135,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [

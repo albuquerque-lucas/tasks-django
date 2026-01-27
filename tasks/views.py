@@ -6,6 +6,7 @@ from .models import PriorityLevel, Task
 from .serializers import PriorityLevelSerializer, TaskSerializer
 from django.contrib.auth import get_user_model
 from teams.models import Team
+from auditlogs.utils import log_audit_event
 
 
 class PriorityLevelViewSet(viewsets.ModelViewSet):
@@ -118,17 +119,79 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = self._resolve_assignee(user_id)
         team = self._resolve_team(user, team_id)
 
-        serializer.save(user=user, status='pending', team=team)
+        task = serializer.save(user=user, status='pending', team=team)
+        log_audit_event(
+            self.request,
+            action='task.create',
+            entity_type='Task',
+            entity_id=task.id,
+            metadata={
+                'title': task.title,
+                'user_id': task.user_id,
+                'team_id': task.team_id,
+                'priority_level_id': task.priority_level_id,
+                'status': task.status,
+            },
+        )
 
     def perform_update(self, serializer):
+        task = serializer.instance
+        before = {
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'due_date': task.due_date,
+            'user_id': task.user_id,
+            'team_id': task.team_id,
+            'priority_level_id': task.priority_level_id,
+        }
         user_id = self.request.data.get('user')
         team_id = self.request.data.get('team')
         if user_id is not None or team_id is not None:
             user = self._resolve_assignee(user_id)
             team = self._resolve_team(user, team_id)
-            serializer.save(user=user, team=team)
+            task = serializer.save(user=user, team=team)
         else:
-            serializer.save()
+            task = serializer.save()
+
+        after = {
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'due_date': task.due_date,
+            'user_id': task.user_id,
+            'team_id': task.team_id,
+            'priority_level_id': task.priority_level_id,
+        }
+        changes = {
+            key: {'from': before[key], 'to': after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            log_audit_event(
+                self.request,
+                action='task.update',
+                entity_type='Task',
+                entity_id=task.id,
+                metadata={'changes': changes},
+            )
+
+    def perform_destroy(self, instance):
+        log_audit_event(
+            self.request,
+            action='task.delete',
+            entity_type='Task',
+            entity_id=instance.id,
+            metadata={
+                'title': instance.title,
+                'user_id': instance.user_id,
+                'team_id': instance.team_id,
+                'priority_level_id': instance.priority_level_id,
+                'status': instance.status,
+            },
+        )
+        instance.delete()
 
     def create(self, request, *args, **kwargs):
         """Override para adicionar tratamento de erro customizado"""

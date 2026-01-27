@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.pagination import PageNumberPagination
 from teams.models import Team
+from auditlogs.utils import log_audit_event
 
 from .serializers import UserCreateSerializer, UserDetailSerializer, UserSerializer
 
@@ -110,6 +111,17 @@ class UserViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             try:
                 user = serializer.save()
+                log_audit_event(
+                    request,
+                    action='user.register',
+                    entity_type='User',
+                    entity_id=user.id,
+                    metadata={
+                        'username': user.username,
+                        'email': user.email,
+                    },
+                    user_override=user,
+                )
                 refresh = RefreshToken.for_user(user)
                 return Response(
                     {
@@ -139,6 +151,65 @@ class UserViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_audit_event(
+            self.request,
+            action='user.create',
+            entity_type='User',
+            entity_id=user.id,
+            metadata={
+                'username': user.username,
+                'email': user.email,
+            },
+        )
+
+    def perform_update(self, serializer):
+        user = serializer.instance
+        before = {
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'bio': getattr(user, 'bio', None),
+            'phone': getattr(user, 'phone', None),
+        }
+        user = serializer.save()
+        after = {
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'bio': getattr(user, 'bio', None),
+            'phone': getattr(user, 'phone', None),
+        }
+        changes = {
+            key: {'from': before[key], 'to': after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            log_audit_event(
+                self.request,
+                action='user.update',
+                entity_type='User',
+                entity_id=user.id,
+                metadata={'changes': changes},
+            )
+
+    def perform_destroy(self, instance):
+        log_audit_event(
+            self.request,
+            action='user.delete',
+            entity_type='User',
+            entity_id=instance.id,
+            metadata={
+                'username': instance.username,
+                'email': instance.email,
+            },
+        )
+        instance.delete()
 
     @action(detail=False, methods=['get'])
     def choices(self, request):

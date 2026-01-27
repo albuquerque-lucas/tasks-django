@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/tasks/', include('tasks.urls')),
     path('api/priority-levels/', include('tasks.priority_urls')),
     path('api/teams/', include('teams.urls')),
+    path('api/audit-logs/', include('auditlogs.urls')),
 ]
 
 if settings.DEBUG:

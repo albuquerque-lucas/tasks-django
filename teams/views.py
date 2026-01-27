@@ -7,6 +7,7 @@ from .models import Team
 from .serializers import TeamSerializer
 from tasks.serializers import TaskSerializer
 from tasks.models import Task
+from auditlogs.utils import log_audit_event
 
 
 class TeamViewSet(viewsets.ModelViewSet):
@@ -52,15 +53,109 @@ class TeamViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Usuario sem permissao para remover equipes')
         return super().destroy(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        team = serializer.save()
+        log_audit_event(
+            self.request,
+            action='team.create',
+            entity_type='Team',
+            entity_id=team.id,
+            metadata={
+                'name': team.name,
+                'description': team.description,
+            },
+        )
+
     def perform_update(self, serializer):
+        team = serializer.instance
+        before_members = set(team.members.values_list('id', flat=True))
+        before_managers = set(team.managers.values_list('id', flat=True))
+        before = {
+            'name': team.name,
+            'description': team.description,
+        }
+
         user = self.request.user
         if (
             not self._can_manage_teams(user)
             and 'members' in self.request.data
-            and not self._is_manager_for_team(user, serializer.instance)
+            and not self._is_manager_for_team(user, team)
         ):
             raise PermissionDenied('Usuario sem permissao para alterar membros')
-        serializer.save()
+
+        team = serializer.save()
+
+        after_members = set(team.members.values_list('id', flat=True))
+        after_managers = set(team.managers.values_list('id', flat=True))
+        after = {
+            'name': team.name,
+            'description': team.description,
+        }
+
+        changes = {
+            key: {'from': before[key], 'to': after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            log_audit_event(
+                self.request,
+                action='team.update',
+                entity_type='Team',
+                entity_id=team.id,
+                metadata={'changes': changes},
+            )
+
+        added_members = sorted(after_members - before_members)
+        removed_members = sorted(before_members - after_members)
+        if added_members:
+            log_audit_event(
+                self.request,
+                action='team.members.add',
+                entity_type='Team',
+                entity_id=team.id,
+                metadata={'member_ids': added_members},
+            )
+        if removed_members:
+            log_audit_event(
+                self.request,
+                action='team.members.remove',
+                entity_type='Team',
+                entity_id=team.id,
+                metadata={'member_ids': removed_members},
+            )
+
+        added_managers = sorted(after_managers - before_managers)
+        removed_managers = sorted(before_managers - after_managers)
+        if added_managers:
+            log_audit_event(
+                self.request,
+                action='team.managers.add',
+                entity_type='Team',
+                entity_id=team.id,
+                metadata={'manager_ids': added_managers},
+            )
+        if removed_managers:
+            log_audit_event(
+                self.request,
+                action='team.managers.remove',
+                entity_type='Team',
+                entity_id=team.id,
+                metadata={'manager_ids': removed_managers},
+            )
+
+    def perform_destroy(self, instance):
+        log_audit_event(
+            self.request,
+            action='team.delete',
+            entity_type='Team',
+            entity_id=instance.id,
+            metadata={
+                'name': instance.name,
+                'description': instance.description,
+            },
+        )
+        instance.delete()
 
     @action(detail=True, methods=['get'])
     def tasks(self, request, pk=None):

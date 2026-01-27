@@ -1,95 +1,76 @@
-# SafeTodo
+# SafeTodo - Backend
 
-Uma RestAPI desenvolvida com Django e Django REST Framework para gerenciar uma todo list segura.
+API em Django + Django REST Framework para tarefas, usuários e equipes.
 
 ## Tecnologias
-
+- Python 3.12 (imagem Docker)
 - Django 4.2.8
-- Django REST Framework 3.14.0
-- Python 3.9+
-- SQLite (padrão) ou PostgreSQL
+- Django REST Framework
+- PostgreSQL (via Docker)
+- SimpleJWT (JWT)
 
-## Instalação
-
-### 1. Clonar o repositório
+## Executar com Docker (recomendado)
 ```bash
-git clone <seu-repositorio>
-cd safetodo
+cd api-fiscal
+docker compose up -d --build
 ```
 
-### 2. Criar ambiente virtual
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
+Aplicará:
+- Banco PostgreSQL em `localhost:5432`
+- API em `http://localhost:8000`
 
-# Linux/Mac
-python3 -m venv venv
-source venv/bin/activate
+### Migrar e seed
+```bash
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py seed_users
 ```
 
-### 3. Instalar dependências
+### Logs
 ```bash
+docker compose logs -f web
+```
+
+### Resetar banco
+```bash
+docker compose down -v
+docker compose up -d --build
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py seed_users
+```
+
+## Executar local (sem Docker)
+```bash
+cd api-fiscal
+python -m venv .venv
+.venv\Scripts\Activate.ps1   # Windows
+# source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
-```
-
-### 4. Configurar variáveis de ambiente
-```bash
-# Copiar arquivo de exemplo
-cp .env.example .env
-
-# Editar .env com suas configurações
-```
-
-### 5. Executar migrações
-```bash
-python manage.py makemigrations
 python manage.py migrate
-```
-
-### 6. Criar superusuário (opcional)
-```bash
-python manage.py createsuperuser
-```
-
-## Executar o servidor
-
-```bash
+python manage.py seed_users
 python manage.py runserver
 ```
 
-O servidor será iniciado em `http://localhost:8000`
+## Variáveis de ambiente
+Arquivo `.env` (veja `.env.example`):
+- `DEBUG`
+- `SECRET_KEY`
+- `DB_ENGINE`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_HOST`
+- `DB_PORT`
+- `ALLOWED_HOSTS`
+- `CORS_ALLOWED_ORIGINS`
 
-## Estrutura do Projeto
+## Endpoints principais
+- `POST /api/users/login/` (JWT)
+- `GET /api/users/me/`
+- `GET /api/users/choices/` (opções simples de usuários)
+- `GET /api/tasks/`
+- `GET /api/teams/`
+- `GET /api/teams/{id}/tasks/`
 
-```
-safetodo/
-├── safetodo/              # Configurações principais do projeto
-│   ├── __init__.py
-│   ├── settings.py          # Configurações do Django
-│   ├── urls.py              # URLs principais
-│   ├── asgi.py
-│   ├── wsgi.py
-├── api/                     # App principal (será criado)
-├── manage.py
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md
-```
-
-## API Endpoints
-
-A documentação dos endpoints será adicionada conforme as apps forem criadas.
-
-## Desenvolvimento
-
-Para adicionar novas apps:
-
-```bash
-python manage.py startapp nome_da_app
-```
-
-## Licença
-
-MIT
+## Observações
+- As rotas de tarefas são protegidas por autenticação.
+- A lógica de permissões usa groups e managers por equipe.

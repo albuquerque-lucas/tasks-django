@@ -8,6 +8,7 @@ from .serializers import TeamSerializer
 from tasks.serializers import TaskSerializer
 from tasks.models import Task
 from auditlogs.utils import log_audit_event
+from notifications.utils import notify
 
 
 class TeamViewSet(viewsets.ModelViewSet):
@@ -116,6 +117,23 @@ class TeamViewSet(viewsets.ModelViewSet):
                 entity_id=team.id,
                 metadata={'member_ids': added_members},
             )
+            recipients = {
+                member.id: member
+                for member in team.members.filter(id__in=added_members)
+            }
+            for member_id in added_members:
+                recipient = recipients.get(member_id)
+                if not recipient:
+                    continue
+                notify(
+                    recipient=recipient,
+                    type='team.member_added',
+                    payload={
+                        'team_id': team.id,
+                        'actor_id': self.request.user.id,
+                    },
+                    actor=self.request.user,
+                )
         if removed_members:
             log_audit_event(
                 self.request,

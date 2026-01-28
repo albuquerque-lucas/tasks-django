@@ -7,6 +7,7 @@ from .serializers import PriorityLevelSerializer, TaskSerializer
 from django.contrib.auth import get_user_model
 from teams.models import Team
 from auditlogs.utils import log_audit_event
+from notifications.utils import notify
 
 
 class PriorityLevelViewSet(viewsets.ModelViewSet):
@@ -133,6 +134,16 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'status': task.status,
             },
         )
+        notify(
+            recipient=user,
+            type='task.assigned',
+            payload={
+                'task_id': task.id,
+                'team_id': task.team_id,
+                'actor_id': self.request.user.id,
+            },
+            actor=self.request.user,
+        )
 
     def perform_update(self, serializer):
         task = serializer.instance
@@ -175,6 +186,17 @@ class TaskViewSet(viewsets.ModelViewSet):
                 entity_type='Task',
                 entity_id=task.id,
                 metadata={'changes': changes},
+            )
+        if 'user_id' in changes:
+            notify(
+                recipient=task.user,
+                type='task.assigned',
+                payload={
+                    'task_id': task.id,
+                    'team_id': task.team_id,
+                    'actor_id': self.request.user.id,
+                },
+                actor=self.request.user,
             )
 
     def perform_destroy(self, instance):

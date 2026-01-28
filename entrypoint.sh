@@ -8,4 +8,4 @@ echo "Executando migrations..."
 python manage.py migrate
 
 echo "Iniciando servidor..."
-python manage.py runserver 0.0.0.0:8000
+uvicorn safetodo.asgi:application --host 0.0.0.0 --port 8000

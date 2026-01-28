@@ -152,6 +152,14 @@ class UserViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def logout(self, request):
+        """
+        Logout idempotente: sempre retorna 200/204 mesmo sem auth.
+        Se houver refresh token no body, apenas ignora por enquanto.
+        """
+        return Response({'message': 'Logout ok'}, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         user = serializer.save()
         log_audit_event(

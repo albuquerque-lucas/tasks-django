@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, get_user_model
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -99,6 +100,33 @@ class UserViewSet(viewsets.ModelViewSet):
                 {
                     'message': 'Erro ao obter dados do usuario',
                     'error_code': 'USER_ERROR',
+                    'details': str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=['post'], url_path='notifications-seen')
+    def notifications_seen(self, request):
+        """Mark notifications as seen for badge purposes."""
+        try:
+            if not request.user.is_authenticated:
+                return Response(
+                    {
+                        'message': 'Usuario nao autenticado',
+                        'error_code': 'UNAUTHENTICATED',
+                        'details': None,
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            now = timezone.now()
+            request.user.notifications_last_seen_at = now
+            request.user.save(update_fields=['notifications_last_seen_at'])
+            return Response({'notifications_last_seen_at': now.isoformat()})
+        except Exception as exc:
+            return Response(
+                {
+                    'message': 'Erro ao atualizar notificacoes',
+                    'error_code': 'NOTIFICATIONS_SEEN_ERROR',
                     'details': str(exc),
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

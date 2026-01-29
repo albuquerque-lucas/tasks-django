@@ -18,6 +18,8 @@ class AuditLogViewSet(
     serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'delete', 'head', 'options']
+    ordering_fields = ['id', 'timestamp', 'action', 'entity_type', 'entity_id']
+    ordering = ['-timestamp', '-id']
 
     def _is_super_admin(self, user):
         return user.is_superuser or user.groups.filter(name='super_admin').exists()

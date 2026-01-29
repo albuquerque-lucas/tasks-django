@@ -24,7 +24,7 @@ class Command(BaseCommand):
             user=admin_user,
             defaults={
                 'description': 'Tarefa seeded para o usuario admin.',
-                'status': 'pending',
+                'status': 'created',
                 'priority_level': default_priority,
             },
         )
@@ -37,3 +37,4 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING('Tarefa inicial ja existe.')
             )
+

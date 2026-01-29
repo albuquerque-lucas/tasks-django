@@ -43,7 +43,7 @@ class PriorityLevel(BaseModel):
 class Task(BaseModel):
     """Modelo de tarefa (TODO list)"""
     STATUS_CHOICES = [
-        ('pending', 'Pendente'),
+        ('created', 'Criada'),
         ('in_progress', 'Em Progresso'),
         ('completed', 'Concluída'),
         ('cancelled', 'Cancelada'),
@@ -67,7 +67,7 @@ class Task(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='pending',
+        default='created',
         verbose_name='Status'
     )
     due_date = models.DateTimeField(
@@ -100,3 +100,14 @@ class Task(BaseModel):
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
+
+
+
+
+
+
+
+
+
+
+

@@ -30,6 +30,18 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    ordering_fields = [
+        'id',
+        'created_at',
+        'updated_at',
+        'title',
+        'status',
+        'due_date',
+        'priority_level__level',
+        'user__username',
+        'team__name',
+    ]
+    ordering = ['-created_at', '-id']
 
     def get_queryset(self):
         """Retorna todas as tarefas"""
@@ -38,7 +50,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Task.objects.none()
 
         if self._is_admin(user) or self._is_company_admin(user):
-            return Task.objects.all().order_by('-id')
+            return Task.objects.all()
 
         teams = (
             Team.objects.filter(members=user)
@@ -47,7 +59,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if not teams.exists():
             return Task.objects.none()
 
-        return Task.objects.filter(team__in=teams).order_by('-id')
+        return Task.objects.filter(team__in=teams)
 
     def _is_admin(self, user):
         return user.is_superuser or user.groups.filter(name='super_admin').exists()
@@ -120,7 +132,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = self._resolve_assignee(user_id)
         team = self._resolve_team(user, team_id)
 
-        task = serializer.save(user=user, status='pending', team=team)
+        task = serializer.save(user=user, status='created', team=team)
         log_audit_event(
             self.request,
             action='task.create',
@@ -267,15 +279,15 @@ class TaskViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
-    def pending(self, request):
-        """Retorna apenas as tarefas pendentes"""
+    def created(self, request):
+        """Retorna apenas as tarefas criadas"""
         try:
-            tasks = self.get_queryset().filter(status='pending')
+            tasks = self.get_queryset().filter(status='created')
             serializer = self.get_serializer(tasks, many=True)
             return Response(serializer.data)
         except Exception as error:
             return Response({
-                'message': 'Erro ao buscar tarefas pendentes',
+                'message': 'Erro ao buscar tarefas criadas',
                 'error_code': 'QUERY_ERROR',
                 'details': str(error),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -293,3 +305,5 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error_code': 'QUERY_ERROR',
                 'details': str(error),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

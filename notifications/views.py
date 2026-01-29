@@ -18,6 +18,8 @@ class NotificationViewSet(
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'delete', 'head', 'options', 'post']
+    ordering_fields = ['id', 'created_at', 'type', 'read_at']
+    ordering = ['-created_at', '-id']
 
     def _is_super_admin(self, user):
         return user.is_superuser or user.groups.filter(name='super_admin').exists()

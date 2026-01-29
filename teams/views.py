@@ -16,6 +16,8 @@ class TeamViewSet(viewsets.ModelViewSet):
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    ordering_fields = ['id', 'name', 'created_at']
+    ordering = ['-created_at', '-id']
 
     def _is_super_admin(self, user):
         return user.is_superuser or user.groups.filter(name='super_admin').exists()
@@ -182,7 +184,10 @@ class TeamViewSet(viewsets.ModelViewSet):
         if not (self._can_manage_teams(user) or team.members.filter(id=user.id).exists() or team.managers.filter(id=user.id).exists()):
             raise PermissionDenied('Usuario sem permissao para acessar tarefas da equipe')
 
-        queryset = Task.objects.filter(team=team).order_by('-id')
+        queryset = Task.objects.filter(team=team)
+        ordering = request.query_params.get('ordering', '-created_at')
+        if ordering:
+            queryset = queryset.order_by(ordering)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = TaskSerializer(page, many=True)

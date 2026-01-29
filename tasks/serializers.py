@@ -67,7 +67,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def validate_status(self, value):
         """Valida se status e valido"""
-        valid_statuses = ['pending', 'in_progress', 'completed', 'cancelled']
+        valid_statuses = ['created', 'in_progress', 'completed', 'cancelled']
         if value not in valid_statuses:
             raise serializers.ValidationError(
                 f'Status deve ser um de: {", ".join(valid_statuses)}'
@@ -81,3 +81,5 @@ class TaskSerializer(serializers.ModelSerializer):
         if not value.is_active:
             raise serializers.ValidationError('Nivel de prioridade inativo.')
         return value
+
+

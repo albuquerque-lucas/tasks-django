@@ -21,6 +21,17 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+    ordering_fields = [
+        'id',
+        'username',
+        'email',
+        'first_name',
+        'last_name',
+        'phone',
+        'date_joined',
+        'last_login',
+    ]
+    ordering = ['-date_joined', '-id']
 
     def get_serializer_class(self):
         if self.action == 'create':

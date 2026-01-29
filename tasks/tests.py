@@ -20,4 +20,6 @@ class TaskTestCase(TestCase):
         )
         self.assertEqual(task.title, 'Test Task')
         self.assertEqual(task.user, self.user)
-        self.assertEqual(task.status, 'pending')
+        self.assertEqual(task.status, 'created')
+
+

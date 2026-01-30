@@ -9,6 +9,7 @@ from .models import Team
 from .serializers import TeamSerializer
 from tasks.serializers import TaskSerializer
 from tasks.models import Task
+from users.serializers import UserSerializer
 from auditlogs.utils import log_audit_event
 from notifications.utils import notify
 from safetodo.services.meili import search_teams
@@ -21,6 +22,25 @@ class TeamViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     ordering_fields = ['id', 'name', 'created_at']
     ordering = ['-created_at', '-id']
+    member_ordering_fields = [
+        'id',
+        'username',
+        'email',
+        'first_name',
+        'last_name',
+        'date_joined',
+    ]
+    task_ordering_fields = [
+        'id',
+        'created_at',
+        'updated_at',
+        'title',
+        'status',
+        'due_date',
+        'priority_level__level',
+        'user__username',
+        'team__name',
+    ]
 
     def _parse_page_params(self, request):
         try:
@@ -40,6 +60,19 @@ class TeamViewSet(viewsets.ModelViewSet):
         if ordering_param:
             return [item.strip() for item in ordering_param.split(',') if item.strip()]
         return list(self.ordering or [])
+
+    def _apply_ordering(self, queryset, ordering, ordering_fields, default_ordering=None):
+        valid_ordering = []
+        ordering_fields = set(ordering_fields or [])
+        for item in ordering:
+            field = item.lstrip('-')
+            if field in ordering_fields:
+                valid_ordering.append(item)
+        if valid_ordering:
+            return queryset.order_by(*valid_ordering)
+        if default_ordering:
+            return queryset.order_by(*default_ordering)
+        return queryset
 
     def _get_meili_sort(self, ordering):
         if not ordering:
@@ -149,6 +182,18 @@ class TeamViewSet(viewsets.ModelViewSet):
 
     def _can_edit_team(self, user, team):
         return self._can_manage_teams(user) or self._is_manager_for_team(user, team)
+
+    def _allowed_teams(self, user):
+        if not user.is_authenticated:
+            return Team.objects.none()
+        if self._can_manage_teams(user):
+            return Team.objects.all()
+        return Team.objects.filter(
+            Q(members=user) | Q(managers=user)
+        ).distinct()
+
+    def get_queryset(self):
+        return self._allowed_teams(self.request.user)
 
     def create(self, request, *args, **kwargs):
         if not self._can_manage_teams(request.user):
@@ -301,12 +346,61 @@ class TeamViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Usuario sem permissao para acessar tarefas da equipe')
 
         queryset = Task.objects.filter(team=team)
-        ordering = request.query_params.get('ordering', '-created_at')
-        if ordering:
-            queryset = queryset.order_by(ordering)
+        search_term = request.query_params.get('search', '').strip()
+        if search_term:
+            search_filter = (
+                Q(title__icontains=search_term)
+                | Q(description__icontains=search_term)
+                | Q(status__icontains=search_term)
+                | Q(priority_level__name__icontains=search_term)
+                | Q(user__username__icontains=search_term)
+                | Q(user__email__icontains=search_term)
+                | Q(user__first_name__icontains=search_term)
+                | Q(user__last_name__icontains=search_term)
+            )
+            if search_term.isdigit():
+                search_filter |= Q(id=int(search_term))
+                search_filter |= Q(priority_level__level=int(search_term))
+            queryset = queryset.filter(search_filter)
+
+        ordering = self._get_ordering(request)
+        queryset = self._apply_ordering(
+            queryset,
+            ordering,
+            self.task_ordering_fields,
+            default_ordering=['-created_at', '-id'],
+        )
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = TaskSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = TaskSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def members(self, request, pk=None):
+        team = self.get_object()
+        user = request.user
+        if not (self._can_manage_teams(user) or team.members.filter(id=user.id).exists() or team.managers.filter(id=user.id).exists()):
+            raise PermissionDenied('Usuario sem permissao para acessar membros da equipe')
+
+        queryset = team.members.all().distinct()
+        ordering = request.query_params.get('ordering')
+        ordering_list = (
+            [item.strip() for item in ordering.split(',') if item.strip()]
+            if ordering
+            else ['-date_joined', '-id']
+        )
+        queryset = self._apply_ordering(
+            queryset,
+            ordering_list,
+            self.member_ordering_fields,
+            default_ordering=['-date_joined', '-id'],
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = UserSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = UserSerializer(queryset, many=True)
         return Response(serializer.data)

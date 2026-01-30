@@ -87,6 +87,36 @@ class TaskViewSet(viewsets.ModelViewSet):
         params['page'] = page
         return request.build_absolute_uri(f'?{params.urlencode()}')
 
+    def _apply_search_filter(self, queryset, search_term):
+        search_filter = (
+            Q(title__icontains=search_term)
+            | Q(description__icontains=search_term)
+            | Q(status__icontains=search_term)
+            | Q(priority_level__name__icontains=search_term)
+            | Q(user__username__icontains=search_term)
+            | Q(user__email__icontains=search_term)
+            | Q(user__first_name__icontains=search_term)
+            | Q(user__last_name__icontains=search_term)
+            | Q(team__name__icontains=search_term)
+        )
+        if search_term.isdigit():
+            search_filter |= Q(id=int(search_term))
+            search_filter |= Q(priority_level__level=int(search_term))
+        return queryset.filter(search_filter)
+
+    def _apply_ordering(self, queryset, ordering):
+        valid_ordering = []
+        ordering_fields = set(self.ordering_fields or [])
+        for item in ordering:
+            field = item.lstrip('-')
+            if field in ordering_fields:
+                valid_ordering.append(item)
+        if valid_ordering:
+            return queryset.order_by(*valid_ordering)
+        if self.ordering:
+            return queryset.order_by(*self.ordering)
+        return queryset
+
     def list(self, request, *args, **kwargs):
         search_term = request.query_params.get('search', '').strip()
         if not search_term:
@@ -148,33 +178,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def _fallback_search(self, request, search_term, provider='db'):
         queryset = self.get_queryset()
-        search_filter = (
-            Q(title__icontains=search_term)
-            | Q(description__icontains=search_term)
-            | Q(status__icontains=search_term)
-            | Q(priority_level__name__icontains=search_term)
-            | Q(user__username__icontains=search_term)
-            | Q(user__email__icontains=search_term)
-            | Q(user__first_name__icontains=search_term)
-            | Q(user__last_name__icontains=search_term)
-            | Q(team__name__icontains=search_term)
-        )
-        if search_term.isdigit():
-            search_filter |= Q(id=int(search_term))
-            search_filter |= Q(priority_level__level=int(search_term))
-        queryset = queryset.filter(search_filter)
+        queryset = self._apply_search_filter(queryset, search_term)
 
         ordering = self._get_ordering(request)
-        valid_ordering = []
-        ordering_fields = set(self.ordering_fields or [])
-        for item in ordering:
-            field = item.lstrip('-')
-            if field in ordering_fields:
-                valid_ordering.append(item)
-        if valid_ordering:
-            queryset = queryset.order_by(*valid_ordering)
-        elif self.ordering:
-            queryset = queryset.order_by(*self.ordering)
+        queryset = self._apply_ordering(queryset, ordering)
 
         paginator = self.paginator
         page_data = paginator.paginate_queryset(queryset, request)
@@ -446,5 +453,33 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error_code': 'QUERY_ERROR',
                 'details': str(error),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def mine(self, request):
+        """Retorna apenas as tarefas atribuidas ao usuario autenticado."""
+        if not request.user.is_authenticated:
+            return Response(
+                {
+                    'message': 'Usuario nao autenticado',
+                    'error_code': 'UNAUTHENTICATED',
+                    'details': None,
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        queryset = Task.objects.filter(user=request.user)
+        search_term = request.query_params.get('search', '').strip()
+        if search_term:
+            queryset = self._apply_search_filter(queryset, search_term)
+
+        ordering = self._get_ordering(request)
+        queryset = self._apply_ordering(queryset, ordering)
+
+        page_data = self.paginator.paginate_queryset(queryset, request)
+        if page_data is not None:
+            serializer = self.get_serializer(page_data, many=True)
+            return self.paginator.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 

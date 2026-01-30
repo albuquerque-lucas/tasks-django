@@ -28,6 +28,19 @@ services:
     networks:
       - api_network
 
+  meili:
+    image: getmeili/meilisearch:v1.7
+    container_name: safetodo_meili
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_API_KEY}
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - api_network
+
   web:
     build: .
     container_name: safetodo_web
@@ -45,6 +58,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: db
       DB_PORT: 5432
+      MEILI_HOST: ${MEILI_HOST}
+      MEILI_API_KEY: ${MEILI_API_KEY}
+      MEILI_USERS_INDEX: ${MEILI_USERS_INDEX}
+      MEILI_TASKS_INDEX: ${MEILI_TASKS_INDEX}
+      MEILI_TEAMS_INDEX: ${MEILI_TEAMS_INDEX}
+      MEILI_AUDITLOGS_INDEX: ${MEILI_AUDITLOGS_INDEX}
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +74,7 @@ services:
 
 volumes:
   postgres_data:
+  meili_data:
 
 networks:
   api_network:

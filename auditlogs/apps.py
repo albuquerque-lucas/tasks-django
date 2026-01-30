@@ -5,3 +5,6 @@ class AuditlogsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'auditlogs'
     verbose_name = 'Audit Logs'
+
+    def ready(self):
+        from . import signals  # noqa: F401

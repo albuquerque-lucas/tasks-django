@@ -1,3 +1,5 @@
+import math
+from django.db.models import Case, IntegerField, Q, When
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from tasks.serializers import TaskSerializer
 from tasks.models import Task
 from auditlogs.utils import log_audit_event
 from notifications.utils import notify
+from safetodo.services.meili import search_teams
 
 
 class TeamViewSet(viewsets.ModelViewSet):
@@ -18,6 +21,119 @@ class TeamViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     ordering_fields = ['id', 'name', 'created_at']
     ordering = ['-created_at', '-id']
+
+    def _parse_page_params(self, request):
+        try:
+            page = int(request.query_params.get('page', 1))
+        except ValueError:
+            page = 1
+        try:
+            page_size = int(request.query_params.get('page_size', 10))
+        except ValueError:
+            page_size = 10
+        page = max(1, page)
+        page_size = max(1, min(page_size, 500))
+        return page, page_size
+
+    def _get_ordering(self, request):
+        ordering_param = request.query_params.get('ordering')
+        if ordering_param:
+            return [item.strip() for item in ordering_param.split(',') if item.strip()]
+        return list(self.ordering or [])
+
+    def _get_meili_sort(self, ordering):
+        if not ordering:
+            return ['id:desc']
+        ordering_fields = set(self.ordering_fields or [])
+        for item in ordering:
+            field = item.lstrip('-')
+            if field in ordering_fields:
+                direction = 'desc' if item.startswith('-') else 'asc'
+                return [f'{field}:{direction}']
+        return ['id:desc']
+
+    def _build_page_link(self, request, page):
+        params = request.query_params.copy()
+        params['page'] = page
+        return request.build_absolute_uri(f'?{params.urlencode()}')
+
+    def list(self, request, *args, **kwargs):
+        search_term = request.query_params.get('search', '').strip()
+        if not search_term:
+            return super().list(request, *args, **kwargs)
+
+        page, page_size = self._parse_page_params(request)
+        ordering = self._get_ordering(request)
+        meili_sort = self._get_meili_sort(ordering)
+        offset = (page - 1) * page_size
+
+        is_numeric = search_term.isdigit()
+        filter_value = f'id = {int(search_term)}' if is_numeric else None
+        query = '' if is_numeric else search_term
+
+        try:
+            meili_result = search_teams(
+                query=query,
+                offset=offset,
+                limit=page_size,
+                sort=meili_sort,
+                filter_value=filter_value,
+            )
+            hits = meili_result.get('hits', [])
+            total = meili_result.get('estimatedTotalHits') or meili_result.get('nbHits') or 0
+            ids = [item.get('id') for item in hits if item.get('id') is not None]
+            if not ids:
+                results = []
+            else:
+                preserved = Case(
+                    *[When(id=pk, then=pos) for pos, pk in enumerate(ids)],
+                    output_field=IntegerField(),
+                )
+                results = self.get_queryset().filter(id__in=ids).order_by(preserved)
+
+            serializer = self.get_serializer(results, many=True)
+            total_pages = math.ceil(total / page_size) if page_size else 1
+            next_link = self._build_page_link(request, page + 1) if page < total_pages else None
+            prev_link = self._build_page_link(request, page - 1) if page > 1 else None
+            response = Response(
+                {
+                    'count': total,
+                    'next': next_link,
+                    'previous': prev_link,
+                    'results': serializer.data,
+                }
+            )
+            response['X-Search-Provider'] = 'meili'
+            return response
+        except Exception:
+            return self._fallback_search(request, search_term, provider='db')
+
+    def _fallback_search(self, request, search_term, provider='db'):
+        queryset = self.get_queryset()
+        search_filter = Q(name__icontains=search_term) | Q(description__icontains=search_term)
+        if search_term.isdigit():
+            search_filter |= Q(id=int(search_term))
+        queryset = queryset.filter(search_filter)
+
+        ordering = self._get_ordering(request)
+        valid_ordering = []
+        ordering_fields = set(self.ordering_fields or [])
+        for item in ordering:
+            field = item.lstrip('-')
+            if field in ordering_fields:
+                valid_ordering.append(item)
+        if valid_ordering:
+            queryset = queryset.order_by(*valid_ordering)
+        elif self.ordering:
+            queryset = queryset.order_by(*self.ordering)
+
+        paginator = self.paginator
+        page_data = paginator.paginate_queryset(queryset, request)
+        response = paginator.get_paginated_response(
+            self.get_serializer(page_data, many=True).data
+        )
+        response['X-Search-Provider'] = provider
+        return response
 
     def _is_super_admin(self, user):
         return user.is_superuser or user.groups.filter(name='super_admin').exists()

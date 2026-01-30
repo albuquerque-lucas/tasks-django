@@ -33,10 +33,10 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'channels',
-    'users',
-    'tasks',
-    'teams',
-    'auditlogs',
+    'users.apps.UsersConfig',
+    'tasks.apps.TasksConfig',
+    'teams.apps.TeamsConfig',
+    'auditlogs.apps.AuditlogsConfig',
     'notifications',
 ]
 
@@ -133,7 +133,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework Configuration
 
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'safetodo.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_FILTER_BACKENDS': [
         'rest_framework.filters.SearchFilter',
@@ -175,3 +175,11 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# Meilisearch
+MEILI_HOST = config('MEILI_HOST', default='')
+MEILI_API_KEY = config('MEILI_API_KEY', default='')
+MEILI_USERS_INDEX = config('MEILI_USERS_INDEX', default='users')
+MEILI_TASKS_INDEX = config('MEILI_TASKS_INDEX', default='tasks')
+MEILI_TEAMS_INDEX = config('MEILI_TEAMS_INDEX', default='teams')
+MEILI_AUDITLOGS_INDEX = config('MEILI_AUDITLOGS_INDEX', default='auditlogs')

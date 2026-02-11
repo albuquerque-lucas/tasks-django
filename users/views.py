@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, get_user_model
+﻿from django.contrib.auth import authenticate, get_user_model
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -7,7 +7,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.pagination import PageNumberPagination
 from teams.models import Team
 
-from .serializers import UserCreateSerializer, UserDetailSerializer, UserSerializer
+from .serializers import (
+    UserCreateSerializer,
+    UserDetailSerializer,
+    UserPresenceSerializer,
+    UserSerializer,
+)
 from .services.events import (
     log_user_create,
     log_user_delete,
@@ -24,6 +29,7 @@ from .services.roles import (
     is_super_admin,
 )
 from .services.search import fallback_search, search_users_meili
+from notifications.services.presence import get_online_map, get_presence_queryset
 
 User = get_user_model()
 
@@ -165,6 +171,68 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @action(detail=False, methods=['get'])
+    def presence(self, request):
+        """Snapshot de presenca (online/offline) com base no escopo atual."""
+        try:
+            user = request.user
+            if not user.is_authenticated:
+                return Response(
+                    {
+                        'message': 'Usuario nao autenticado',
+                        'error_code': 'UNAUTHENTICATED',
+                        'details': None,
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            team_id = request.query_params.get('team')
+            team = None
+            if team_id:
+                team = Team.objects.filter(id=team_id).first()
+                if not team:
+                    return Response(
+                        {
+                            'message': 'Equipe nao encontrada',
+                            'error_code': 'TEAM_NOT_FOUND',
+                            'details': None,
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                if not (
+                    is_super_admin(user)
+                    or is_company_admin(user)
+                    or team.members.filter(id=user.id).exists()
+                    or team.managers.filter(id=user.id).exists()
+                ):
+                    return Response(
+                        {
+                            'message': 'Usuario sem permissao para acessar equipe',
+                            'error_code': 'FORBIDDEN',
+                            'details': None,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            queryset = get_presence_queryset(user, team=team)
+            user_ids = list(queryset.values_list('id', flat=True))
+            online_map = get_online_map(user_ids)
+            serializer = UserPresenceSerializer(
+                queryset,
+                many=True,
+                context={'online_map': online_map},
+            )
+            return Response(serializer.data)
+        except Exception as exc:
+            return Response(
+                {
+                    'message': 'Erro ao obter presenca',
+                    'error_code': 'PRESENCE_ERROR',
+                    'details': str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(detail=False, methods=['post'], url_path='notifications-seen')
     def notifications_seen(self, request):
         """Mark notifications as seen for badge purposes."""
@@ -196,12 +264,12 @@ class UserViewSet(viewsets.ModelViewSet):
     def register(self, request):
         """Allow new user registration."""
         serializer = UserCreateSerializer(data=request.data)
-            if serializer.is_valid():
-                try:
-                    user = serializer.save()
-                    log_user_register(request, user)
-                    refresh = RefreshToken.for_user(user)
-                    return Response(
+        if serializer.is_valid():
+            try:
+                user = serializer.save()
+                log_user_register(request, user)
+                refresh = RefreshToken.for_user(user)
+                return Response(
                     {
                         'access': str(refresh.access_token),
                         'refresh': str(refresh),
@@ -336,3 +404,4 @@ class UserViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+

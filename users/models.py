@@ -16,6 +16,7 @@ class User(AbstractUser):
     bio = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     notifications_last_seen_at = models.DateTimeField(blank=True, null=True)
+    last_seen_at = models.DateTimeField(blank=True, null=True)
 
     user_permissions = models.ManyToManyField(
         'auth.Permission',

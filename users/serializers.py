@@ -1,6 +1,8 @@
 ﻿from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
+from notifications.services.presence import is_user_online
+
 User = get_user_model()
 
 
@@ -71,3 +73,26 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class UserPresenceSerializer(serializers.ModelSerializer):
+    is_online = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'last_seen_at',
+            'is_online',
+        ]
+        read_only_fields = fields
+
+    def get_is_online(self, obj):
+        online_map = self.context.get('online_map')
+        if online_map is not None:
+            return bool(online_map.get(obj.id))
+        return is_user_online(obj.id)
+

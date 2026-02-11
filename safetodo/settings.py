@@ -176,6 +176,16 @@ CHANNEL_LAYERS = {
     },
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
+    }
+}
+
+PRESENCE_TTL_SECONDS = config('PRESENCE_TTL_SECONDS', default=75, cast=int)
+PRESENCE_LAST_SEEN_UPDATE_SECONDS = config('PRESENCE_LAST_SEEN_UPDATE_SECONDS', default=60, cast=int)
+
 # Meilisearch
 MEILI_HOST = config('MEILI_HOST', default='')
 MEILI_API_KEY = config('MEILI_API_KEY', default='')
